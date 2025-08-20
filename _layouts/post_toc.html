@@ -1,0 +1,229 @@
+---
+layout: default
+---
+
+<!-- Chỉ dùng CSS của bootstrap-toc (không dùng Bootstrap CSS để tránh lệch header) -->
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/gh/afeld/bootstrap-toc@1.0.1/dist/bootstrap-toc.min.css"
+/>
+
+<style>
+  :root {
+    --toc-w: 150px;
+  } /* ⇦ sửa độ rộng TOC tại đây */
+
+  /* Grid: TOC trái, Header + Nội dung ở cột phải (thẳng hàng) */
+  .toc-grid {
+    display: grid;
+    grid-template-columns: var(--toc-w) 1fr;
+    grid-template-areas:
+      'toc header'
+      'toc content';
+    column-gap: 20px;
+  }
+  .toc-area {
+    grid-area: toc;
+  }
+  .header-area {
+    grid-area: header;
+  }
+  .content-area {
+    grid-area: content;
+  }
+
+  /* TOC tối giản + bỏ bullet */
+  nav#toc,
+  nav#toc-mobile {
+    max-height: calc(100vh - 2rem);
+    overflow: auto;
+  }
+  nav#toc {
+    position: sticky;
+    top: 1rem;
+  }
+  nav#toc ul,
+  nav#toc-mobile ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+  }
+  nav#toc .nav .nav,
+  nav#toc-mobile .nav .nav {
+    margin-left: 0.5rem;
+  }
+  nav#toc a,
+  nav#toc-mobile a {
+    font-size: 0.9rem;
+    color: #666;
+    padding: 0.15rem 0.2rem;
+    border-left: 2px solid transparent;
+    text-decoration: none;
+  }
+  nav#toc a:hover,
+  nav#toc-mobile a:hover {
+    color: #333;
+    text-decoration: none;
+  }
+  nav#toc .nav-link.active,
+  nav#toc .active > .nav-link {
+    color: #111;
+    font-weight: 600;
+    border-left-color: #5aa7ff;
+  }
+
+  /* tránh bị che khi cuộn tới heading */
+  .post-content h1 {
+    scroll-margin-top: 90px;
+  }
+
+  /* Ẩn/hiện theo kích thước màn hình (không phụ thuộc Bootstrap) */
+  .only-mobile {
+    display: block;
+  }
+  .only-desktop {
+    display: none;
+  }
+  @media (min-width: 992px) {
+    .only-mobile {
+      display: none;
+    }
+    .only-desktop {
+      display: block;
+    }
+  }
+
+  /* Ẩn footer trong trang post_toc (bỏ dòng này nếu muốn giữ) */
+  .site-footer {
+    display: none !important;
+  }
+</style>
+
+<div class="wrapper my-4">
+  <!-- TOC Mobile (ẩn trên desktop bằng CSS tự định nghĩa) -->
+  <div class="only-mobile" style="margin-bottom: 0.75rem">
+    <details>
+      <summary style="cursor: pointer">☰ Mục lục</summary>
+      <nav id="toc-mobile"></nav>
+    </details>
+  </div>
+
+  <div class="toc-grid">
+    <!-- TOC Desktop (trái) -->
+    <aside class="toc-area only-desktop">
+      <nav id="toc"></nav>
+    </aside>
+
+    <!-- Header (phải) -->
+    <header class="header-area mb-3">
+      <h1 class="mb-1">{{ page.title }}</h1>
+      {% if page.date %}
+      <p class="post-meta mb-0">
+        <time datetime="{{ page.date | date_to_xmlschema }}">
+          {{ page.date | date: site.minima.date_format | default: "%b %-d, %Y"
+          }}
+        </time>
+      </p>
+      {% endif %}
+    </header>
+
+    <!-- Nội dung -->
+    <main id="content" class="content-area">
+      <article
+        class="post h-entry"
+        itemscope
+        itemtype="http://schema.org/BlogPosting"
+      >
+        <div class="post-content e-content" itemprop="articleBody">
+          {{ content }}
+        </div>
+      </article>
+    </main>
+  </div>
+</div>
+
+<!-- jQuery + Bootstrap JS (cho ScrollSpy) + bootstrap-toc -->
+<!-- bỏ bootstrap-toc JS, chỉ cần script dưới là đủ -->
+<script>
+  // Tạo slug đơn giản nếu heading chưa có id
+  function slugify(text) {
+    return text
+      .toString()
+      .trim()
+      .toLowerCase()
+      .replace(/[\s\.\,\/\\]+/g, '-')
+      .replace(/[^a-z0-9\-]+/g, '')
+      .replace(/\-+/g, '-')
+      .replace(/^\-|\-$/g, '');
+  }
+
+  function buildTOC(navSelector, scopeSelector, headingSelector) {
+    const nav = document.querySelector(navSelector);
+    if (!nav) return;
+    const scope = document.querySelector(scopeSelector);
+    if (!scope) return;
+
+    // chỉ lấy H1 trong phần nội dung
+    const headings = Array.from(scope.querySelectorAll(headingSelector));
+    const seen = new Set();
+    const ul = document.createElement('ul');
+    ul.style.listStyle = 'none';
+    ul.style.paddingLeft = '0';
+    ul.style.margin = '0';
+
+    headings.forEach((h) => {
+      // gán id nếu chưa có
+      if (!h.id) h.id = slugify(h.textContent);
+
+      // chống trùng theo id
+      if (seen.has(h.id)) return;
+      seen.add(h.id);
+
+      const li = document.createElement('li');
+      const a = document.createElement('a');
+      a.href = '#' + h.id;
+      a.textContent = h.textContent;
+      a.style.display = 'block';
+      a.style.fontSize = '.9rem';
+      a.style.padding = '.1rem .2rem';
+      a.style.color = '#666';
+      a.style.textDecoration = 'none';
+
+      a.addEventListener('mouseenter', () => {
+        a.style.color = '#333';
+      });
+      a.addEventListener('mouseleave', () => {
+        a.style.color = '#666';
+      });
+
+      li.appendChild(a);
+      ul.appendChild(li);
+    });
+
+    nav.innerHTML = '';
+    nav.appendChild(ul);
+
+    // highlight link đang active khi cuộn
+    const links = Array.from(nav.querySelectorAll('a'));
+    function onScroll() {
+      const y = window.scrollY + 90; // lệch để khỏi che
+      let current = null;
+      headings.forEach((h) => {
+        if (h.offsetTop <= y) current = h;
+      });
+      links.forEach((l) => (l.style.fontWeight = '400'));
+      if (current) {
+        const active = nav.querySelector(`a[href="#${current.id}"]`);
+        if (active) active.style.fontWeight = '600';
+      }
+    }
+    document.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    // CHỈ H1 trong .post-content
+    buildTOC('#toc', '.post-content', 'h1'); // desktop
+    buildTOC('#toc-mobile', '.post-content', 'h1'); // mobile
+  });
+</script>
